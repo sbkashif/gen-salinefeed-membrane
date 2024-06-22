@@ -1,5 +1,5 @@
 """
-Count the number of water molecules in feed and domain
+Count the number of water molecules in a domain -- feed, polymer, or permeate
 """
 
 import os
