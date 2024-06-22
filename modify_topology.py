@@ -1,5 +1,5 @@
 """
-Count the number of water molecules in a domain -- feed, polymer, or permeate
+Class to modify topology file to become consistent with gro files
 """
 
 import os
@@ -12,7 +12,21 @@ import statistics
 import argparse
 
 class ModifyTopology(object):
+    class ModifyTopology:
+        def __init__(self):
+            """
+            Initialize the ModifyTopology class.
+            """
+            self.parser = argparse.ArgumentParser(prog='modify_topology', usage='%(prog)s [-h for help]',
+                                                  description='Find polymer domain')
+            self.parser.add_argument('-top_file', "--top_file", help='Input xtc file (Required).')
+            self.parser.add_argument('-o', "--o")
+            self.parser.add_argument('-gro', "--gro", help='reference gro file')
+            self.parser.add_argument('-target_resname', '--target_resname', default="SOL",
+                                     help="residue name of water")
+            self.current_path = os.getcwd()
     def __init__(self):
+        
         self.parser = argparse.ArgumentParser(prog = 'modify_topology', usage = '%(prog)s [-h for help]', \
                                           description = 'Find polymer domain')
         self.parser.add_argument('-top_file', "--top_file", help = 'Input xtc file (Required).')
@@ -23,6 +37,34 @@ class ModifyTopology(object):
         
         
     def main(self,bash=True,**kwargs):
+        """
+        Main function of DomainWaterCount
+
+        This function is designed to automatically adjust to run as bash script or as a function call.
+        If it is a bash script, the paremeters are passed as command line arguments. If it is a function call, the parameters are passed while running the main functions.
+        
+        Example:
+        --------
+        To run as bash script:
+        python domain_water_count.py -gro_file conf.gro -o output.txt -dzp 2 -dzn 2 -polymer_resnames "PVA|WAT"
+        
+        To run as function call:
+        run=DomainWaterCount().main(gro_file="conf.gro",o="output.txt",dzp=2,dzn=2,polymer_resnames="PVA|WAT")
+        
+        Parameters
+        ----------
+        bash : bool, optional
+            Set to True if running as bash script. The default is True.
+
+        Returns
+        -------
+        Tuple
+            Number of water molecules in feed domain and permeate domain
+        """        
+        
+        #Kwargs keys will become self variables and values will be assigned to them if running as function call,
+        #If running as bash script, the command line arguments will be parsed and assigned to self variables
+        
         if bash==False:
             self.__dict__.update(kwargs)
         else:
@@ -99,20 +141,18 @@ class ModifyTopology(object):
         #Finding the number of water molecules in the gro file
         sol_frame=df.loc[df['resname'].str.contains(self.target_resname,case=False)]
         n_target_molecules=len(pd.unique(sol_frame['resid']))
-        #n_target_molecules=int(sol_frame.shape[0]/int(self.n_atoms_water))
         print("Number of molecules of the chosen residue:",n_target_molecules)
         
         list_of_lines[line_num]=str(self.target_resname)+"\t\t\t\t"+str(n_target_molecules)+"\n"
         top_file.close()      
         
+        #Now write the new topology file
         print("Writing new topology file:", self.o)
         o=open(os.path.join(self.current_path,self.o),"w+")
         for idx,line in enumerate(list_of_lines):
             if idx not in target_resname_lines:
                 o.write(line)
 
-        #o.writelines(list_of_lines)
-        
         o.close()
         
 
