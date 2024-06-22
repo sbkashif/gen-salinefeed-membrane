@@ -1,5 +1,10 @@
 """
-Retain polymer and water molecules within a certain distance from polymer
+Obtain polymer and water molecules within a certain z-distance from polymer
+
+Author: Salman Bin Kashif
+Affiliation: Sarupria Research Group, Clemson University
+
+Created: 07/12/2022
 """
 
 import os
@@ -13,18 +18,60 @@ import argparse
 
 class PolymerDomain(object):
     def __init__(self):
-        self.parser = argparse.ArgumentParser(prog = 'obtain_polymer_domain', usage = '%(prog)s [-h for help]', \
-                                          description = 'Find polymer domain')
+        """
+        Initilize a new instance of PolymerDomain
+
+        """        
+        self.parser = argparse.ArgumentParser(prog = 'obtain_polymer_domain', 
+                                              usage = '%(prog)s [-h for help]', \
+                                            description = 'Find polymer domain')
         self.parser.add_argument('-gro_file', "--gro_file")
         self.parser.add_argument('-o',"--o")
-        self.parser.add_argument('-dzp',"--dzp", default=0.0, help='z-distance from the top of polymer to retain solvent')
-        self.parser.add_argument('-dzn',"--dzn", default=0.0, help='z-distance from the bottom of polymer to retain solvent')
-        self.parser.add_argument('-polymer_resnames',"--polymer_resnames", default="SOL", help='z-distance from the bottom of polymer to retain solvent')
-        self.parser.add_argument('-solvent_resnames',"--solvent_resnames", help='z-distance from the bottom of polymer to retain solvent')
-        self.parser.add_argument('-n_atoms_water','--n_atoms_water',default=0,help='number of atoms per water molecules')
+        self.parser.add_argument('-dzp',"--dzp", 
+                                 default=0.0, 
+                                 help='z-distance from the top of polymer to retain solvent')
+        self.parser.add_argument('-dzn',"--dzn", 
+                                 default=0.0, 
+                                 help='z-distance from the bottom of polymer to retain solvent')
+        self.parser.add_argument('-polymer_resnames',"--polymer_resnames", 
+                                 default="SOL", 
+                                 help='z-distance from the bottom of polymer to retain solvent')
+        self.parser.add_argument('-solvent_resnames',"--solvent_resnames", 
+                                 help='z-distance from the bottom of polymer to retain solvent')
+        self.parser.add_argument('-n_atoms_water','--n_atoms_water',
+                                 default=0,
+                                 help='number of atoms per water molecules')
         self.current_path=os.getcwd()
 
     def main(self,bash=True,**kwargs):
+        """
+        Main function of DomainWaterCount
+
+        This function is designed to automatically adjust to run as bash script or as a function call.
+        If it is a bash script, the paremeters are passed as command line arguments. If it is a function call, the parameters are passed while running the main functions.
+        
+        Example:
+        --------
+        To run as bash script:
+        python domain_water_count.py -gro_file conf.gro -o output.txt -dzp 2 -dzn 2 -polymer_resnames "PVA|WAT"
+        
+        To run as function call:
+        run=DomainWaterCount().main(gro_file="conf.gro",o="output.txt",dzp=2,dzn=2,polymer_resnames="PVA|WAT")
+        
+        Parameters
+        ----------
+        bash : bool, optional
+            Set to True if running as bash script. The default is True.
+
+        Returns
+        -------
+        Tuple
+            Number of water molecules in feed domain and permeate domain
+        """        
+        
+        #Kwargs keys will become self variables and values will be assigned to them if running as function call,
+        #If running as bash script, the command line arguments will be parsed and assigned to self variables
+        
         if bash==False:
             self.__dict__.update(kwargs)
         else:
@@ -32,11 +79,23 @@ class PolymerDomain(object):
             param=vars(args)
             for key in param:
                 setattr(self,key,param[key])
-        print(sys.argv)
-        print(self.current_path)
+        print(f"Arguments passed{sys.argv}")
+        print(f"Current directory:{self.current_path}")
         return self.obtain_polymer_domain()
 
     def obtain_polymer_domain(self):
+        """
+        Core function to the extremes of polymeric membrane and water molecules inside the polymer
+
+
+        Returns
+        -------
+        _output : dict
+            Dictionary containing the box dimensions, minimum and maximum polymer coordinates, number of water molecules in the domain, feed strip and permeate strip water molecules, and polymer water molecules
+        Notes
+        -----
+        Writes an output gro file with the trimmed system -- polymeric membrane and water molcules inside the polymeric membrane
+        """        
         try:
             gro_file=open(self.gro_file)
             print(os.path.abspath(gro_file))
@@ -79,7 +138,9 @@ class PolymerDomain(object):
             min_z_polymer=min_polymer-float(self.dzn)
 
             solvent_resnames='|'.join(self.solvent_resnames.split())
+            
             #Finding the water molecules in polymer domain
+            #Seprate dataframes for water in polymer domain and water in feed and permeate strips
             sol_frame=df.loc[df['res'].str.contains(solvent_resnames,case=False)]
             p_strip=sol_frame[(sol_frame["z"] < max_z_polymer) & (sol_frame["z"] > max_polymer) & (sol_frame["atom_type"]=="OW")].shape[0]
             n_strip=sol_frame[(sol_frame["z"] > min_z_polymer) & (sol_frame["z"] < min_polymer) & (sol_frame["atom_type"]=="OW")].shape[0]
@@ -93,7 +154,7 @@ class PolymerDomain(object):
             sol_frame_domain=pd.concat(atom_dataframes).sort_index(kind='merge')
             
 
-            #Combining the two dataframes
+            #Combining the two dataframes -- polymer and water
             polymer_sol_domain_list=[polymer,sol_frame_domain]
             polymer_sol_domain=pd.concat(polymer_sol_domain_list)
 
@@ -105,9 +166,7 @@ class PolymerDomain(object):
             polymer_sol_domain.insert(loc=2,column='resname',value=res_split['resname'])
             polymer_sol_domain.drop('res',axis=1,inplace=True)
             polymer_sol_domain=polymer_sol_domain.reset_index(drop=True)
-            #print("Extracted the atoms present in the domain:\n",polymer_sol_domain)
-            #n_water_molecules=polymer_sol_domain.loc[df['team1'].str[0]=='S', 'team1'].unique()
-            #_water_molecules=len(pd.unique(sol_frame['resid']))
+            print("Extracted the atoms present in the domain:\n",polymer_sol_domain)
             
             self.n_water_molecules=sol_frame_domain.shape[0]/int(self.n_atoms_water)
         except Exception as e:
@@ -116,6 +175,8 @@ class PolymerDomain(object):
             o=open(self.o,"w+")
         except IOError as e:
             print(e)
+            
+        #Write the modified gro file
 
         o.write("Generated by obtain_polymer_domain.py")
         o.write("\n")

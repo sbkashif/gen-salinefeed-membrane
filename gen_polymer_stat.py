@@ -1,5 +1,5 @@
 """
-Find the minimum and maximum of polymer
+Find the minimum and maximum z-coordinate of the polymer
 """
 
 import os
@@ -13,8 +13,9 @@ import statistics
 import argparse
 
 def create_parser():
-    parser = argparse.ArgumentParser(prog = 'HeatMapUsingMDAnalysis', usage = '%(prog)s [-h for help]', \
-                                      description = 'Generate the heat map for a trajectory')
+    parser = argparse.ArgumentParser(prog = 'HeatMapUsingMDAnalysis', 
+                                     usage = '%(prog)s [-h for help]', \
+                                     description = 'Generate the minimym and maximum z-coordinate of the polymer.')
     parser.add_argument('-f', "--f", help = 'Input xtc file (Required).')
     parser.add_argument('-o',"--o")
     return parser
@@ -26,6 +27,22 @@ def main(args):
     det_polymer_extremes(GROFile,OutFile)
 
 def det_polymer_extremes(filename,outfile):
+    """
+    Determine the minimum and maximum z-coordinate of the polymer
+
+    
+    Parameters
+    ----------
+    filename : str
+        Inpit file name
+    outfile : str
+        Output file name
+
+    Returns
+    -------
+    Tuple
+        Minimum and maximum z-coordinate of the polymer
+    """    
     
     try:
         print("Opening file...\n ",filename)
